@@ -221,52 +221,32 @@ app.post('/api/get-chunk', async (req, res) => {
 });
 
 // Add an endpoint to get all available sources
-// Add an endpoint to get column information for a source
-app.get('/api/schema/:primary_name/:source', async (req, res) => {
+app.get('/api/sources/:primary_name', async (req, res) => {
     try {
-      const { primary_name, source } = req.params;
+      const { primary_name } = req.params;
       
-      if (!primary_name || !source) {
-        return res.status(400).json({ error: 'Primary name and source are required' });
+      if (!primary_name) {
+        return res.status(400).json({ error: 'Primary name is required' });
       }
       
-      // Try with different naming conventions
-      let filePath = path.join(__dirname, '..', 'public', primary_name, `${source}.csv`);
+      const directoryPath = path.join(__dirname, '..', 'public', primary_name);
       
-      console.log(`Looking for file at: ${filePath}`);
-      
-      if (!await fs.pathExists(filePath)) {
-        console.log(`File not found at: ${filePath}, trying alternative paths...`);
-        
-        // Try with hyphen instead of underscore
-        const hyphenSource = source.replace(/_/g, '-');
-        filePath = path.join(__dirname, '..', 'public', primary_name, `${hyphenSource}.csv`);
-        
-        if (!await fs.pathExists(filePath)) {
-          return res.status(404).json({ error: `File not found: ${source}.csv` });
-        }
+      if (!await fs.pathExists(directoryPath)) {
+        return res.status(404).json({ error: `Directory not found: ${primary_name}` });
       }
       
-      // Use fs.readFile instead of streaming for more predictable behavior
-      const fileContent = await fs.readFile(filePath, 'utf8');
-      
-      // Get the first line for headers
-      const lines = fileContent.split('\n');
-      if (lines.length === 0) {
-        return res.status(400).json({ error: 'Empty CSV file' });
-      }
-      
-      const headerLine = lines[0].trim();
-      const headers = headerLine.split(',').map(header => header.trim().replace(/^"|"$/g, ''));
+      // Get all CSV files in the directory
+      const files = await fs.readdir(directoryPath);
+      const csvFiles = files.filter(file => file.endsWith('.csv'))
+                           .map(file => file.replace('.csv', ''));
       
       res.json({
         primary_name,
-        source,
-        columns: headers
+        available_sources: csvFiles
       });
     } catch (error) {
-      console.error('Error getting schema:', error);
-      res.status(500).json({ error: 'Internal server error: ' + error.message });
+      console.error('Error getting sources:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
