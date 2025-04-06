@@ -102,16 +102,24 @@ async function testSourcesAPI() {
 async function testSchemaAPI() {
   try {
     console.log('\n--- Testing Schema API ---');
-    // Choose a file that you know exists from the sources test
-    const source = "activities"; // Update this if needed based on your file structure
-    const response = await axios.get(`${API_URL}/api/schema/Sterling_Holidays/${source}`);
+    // Set a timeout to prevent hanging
+    const response = await axios.get(`${API_URL}/api/schema/Sterling_Holidays/activities`, {
+      timeout: 5000 // 5 second timeout
+    });
     
     console.log('Status:', response.status);
     console.log('Primary Name:', response.data.primary_name);
     console.log('Source:', response.data.source);
     console.log('Columns:', response.data.columns);
   } catch (error) {
-    console.error('Error testing schema API:', error.response ? error.response.data : error.message);
+    console.error('Error testing schema API:', 
+      error.code === 'ECONNABORTED' 
+        ? 'Request timed out' 
+        : (error.response ? error.response.data : error.message)
+    );
+    
+    // Continue with next tests even if this one fails
+    console.log('Skipping to next test due to error in schema API test');
   }
 }
 
