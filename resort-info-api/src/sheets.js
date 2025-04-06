@@ -1,10 +1,6 @@
 const { google } = require('googleapis');
 const fs = require('fs');
 const path = require('path');
-
-const { google } = require('googleapis');
-const fs = require('fs');
-const path = require('path');
 require('dotenv').config(); // Load .env file from parent directory
 
 class SheetsLogger {
