@@ -4,14 +4,15 @@ const path = require('path');
 const csv = require('csv-parser');
 const cors = require('cors');
 
+require('dotenv').config(); // Load .env file
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Add these imports at the top of the file
 const SheetsLogger = require('./sheets');
 const credentialsPath = path.join(__dirname, '..', 'credentials.json');
-const spreadsheetId = 'YOUR_SPREADSHEET_ID'; // Replace with your actual spreadsheet ID
-const sheetsLogger = new SheetsLogger(credentialsPath, spreadsheetId);
+// Using environment variable for spreadsheet ID
+const sheetsLogger = new SheetsLogger(credentialsPath);
 
 // Initialize the sheets logger when the server starts
 sheetsLogger.ensureSheetExists().catch(err => {

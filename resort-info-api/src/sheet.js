@@ -2,14 +2,24 @@ const { google } = require('googleapis');
 const fs = require('fs');
 const path = require('path');
 
+const { google } = require('googleapis');
+const fs = require('fs');
+const path = require('path');
+require('dotenv').config(); // Load .env file from parent directory
+
 class SheetsLogger {
-  constructor(credentialsPath, spreadsheetId) {
-    this.spreadsheetId = spreadsheetId;
+  constructor(credentialsPath, spreadsheetId = null) {
+    // Use provided spreadsheet ID or get from environment variables
+    this.spreadsheetId = spreadsheetId || process.env.SPREADSHEET_ID;
     this.sheetName = 'Conversation Logs';
     this.auth = null;
     this.sheets = null;
     this.credentialsPath = credentialsPath;
     this.initialized = false;
+    
+    if (!this.spreadsheetId) {
+      console.warn('No spreadsheet ID provided. Please set SPREADSHEET_ID in .env file');
+    }
   }
 
   // Initialize the Google Sheets connection
