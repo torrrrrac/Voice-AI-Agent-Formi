@@ -1,7 +1,8 @@
 const axios = require('axios');
+require('dotenv').config(); // Load environment variables
 
 // Base URL for the API
-const API_URL = 'http://localhost:3000';
+const API_URL = process.env.API_URL || 'http://localhost:3000';
 
 // Test the filter-information endpoint
 async function testFilterAPI() {
@@ -27,7 +28,11 @@ async function testFilterAPI() {
     console.log('Status:', response.status);
     console.log('Metadata:', response.data.metadata);
     console.log('Data Count:', response.data.data.length);
-    console.log('First Item:', response.data.data[0]);
+    if (response.data.data.length > 0) {
+      console.log('First Item:', response.data.data[0]);
+    } else {
+      console.log('No data found matching the filters');
+    }
     
     // If response is chunked, test the get-chunk endpoint
     if (response.data.metadata.chunked && response.data.metadata.total_chunks > 1) {
@@ -68,6 +73,8 @@ async function testGetChunk(totalChunks) {
       console.log('Data Count:', response.data.data.length);
       if (response.data.data.length > 0) {
         console.log('First Item in Chunk:', response.data.data[0]);
+      } else {
+        console.log('No data in this chunk');
       }
     } else {
       console.log(`Skipping chunk test: only ${totalChunks} chunks available.`);
@@ -95,7 +102,9 @@ async function testSourcesAPI() {
 async function testSchemaAPI() {
   try {
     console.log('\n--- Testing Schema API ---');
-    const response = await axios.get(`${API_URL}/api/schema/Sterling_Holidays/activities`);
+    // Choose a file that you know exists from the sources test
+    const source = "activities"; // Update this if needed based on your file structure
+    const response = await axios.get(`${API_URL}/api/schema/Sterling_Holidays/${source}`);
     
     console.log('Status:', response.status);
     console.log('Primary Name:', response.data.primary_name);
@@ -103,6 +112,31 @@ async function testSchemaAPI() {
     console.log('Columns:', response.data.columns);
   } catch (error) {
     console.error('Error testing schema API:', error.response ? error.response.data : error.message);
+  }
+}
+
+// Test the conversation logging endpoint
+async function testConversationLogging() {
+  try {
+    console.log('\n--- Testing Conversation Logging API ---');
+    const response = await axios.post(`${API_URL}/api/log-conversation`, {
+      callTime: new Date().toISOString(),
+      phoneNumber: '9833620578',
+      callOutcome: 'ROOM_AVAILABILITY',
+      customerName: 'Test User',
+      roomName: 'Executive Room',
+      checkInDate: '2025-04-07',
+      checkOutDate: '2025-04-09',
+      numberOfGuests: '2',
+      callSummary: 'The user inquired about room availability and pricing for a two-night stay.'
+    });
+    
+    console.log('Status:', response.status);
+    console.log('Success:', response.data.success);
+    console.log('Message:', response.data.message);
+    console.log('Details:', response.data.details);
+  } catch (error) {
+    console.error('Error testing conversation logging:', error.response ? error.response.data : error.message);
   }
 }
 
@@ -135,8 +169,11 @@ async function runAllTests() {
     // Then test schema
     await testSchemaAPI();
     
-    // Finally test the main filtering functionality
+    // Test the main filtering functionality
     await testFilterAPI();
+    
+    // Finally test the conversation logging
+    await testConversationLogging();
     
     console.log('\n=== All Tests Completed ===');
   } catch (error) {
