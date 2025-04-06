@@ -7,6 +7,49 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Add these imports at the top of the file
+const SheetsLogger = require('./sheets');
+const credentialsPath = path.join(__dirname, '..', 'credentials.json');
+const spreadsheetId = 'YOUR_SPREADSHEET_ID'; // Replace with your actual spreadsheet ID
+const sheetsLogger = new SheetsLogger(credentialsPath, spreadsheetId);
+
+// Initialize the sheets logger when the server starts
+sheetsLogger.ensureSheetExists().catch(err => {
+  console.error('Failed to initialize Google Sheets:', err);
+});
+
+// Add this new endpoint to log conversations
+app.post('/api/log-conversation', async (req, res) => {
+  try {
+    const conversationData = req.body;
+    
+    // Validate required fields
+    if (!conversationData) {
+      return res.status(400).json({ error: 'Conversation data is required' });
+    }
+    
+    // Log to Google Sheets
+    const result = await sheetsLogger.logConversation(conversationData);
+    
+    if (result.success) {
+      res.json({
+        success: true,
+        message: 'Conversation logged successfully',
+        details: result
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to log conversation',
+        details: result.error
+      });
+    }
+  } catch (error) {
+    console.error('Error logging conversation:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Middleware
 app.use(cors());
 app.use(express.json());
