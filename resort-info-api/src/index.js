@@ -221,83 +221,54 @@ app.post('/api/get-chunk', async (req, res) => {
 });
 
 // Add an endpoint to get all available sources
-app.get('/api/sources/:primary_name', async (req, res) => {
-  try {
-    const { primary_name } = req.params;
-    
-    if (!primary_name) {
-      return res.status(400).json({ error: 'Primary name is required' });
-    }
-    
-    const directoryPath = path.join(__dirname, '..', 'public', primary_name);
-    
-    if (!await fs.pathExists(directoryPath)) {
-      return res.status(404).json({ error: `Directory not found: ${primary_name}` });
-    }
-    
-    // Get all CSV files in the directory
-    const files = await fs.readdir(directoryPath);
-    const csvFiles = files.filter(file => file.endsWith('.csv'))
-                         .map(file => file.replace('.csv', ''));
-    
-    res.json({
-      primary_name,
-      available_sources: csvFiles
-    });
-  } catch (error) {
-    console.error('Error getting sources:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
 // Add an endpoint to get column information for a source
 app.get('/api/schema/:primary_name/:source', async (req, res) => {
-  try {
-    const { primary_name, source } = req.params;
-    
-    if (!primary_name || !source) {
-      return res.status(400).json({ error: 'Primary name and source are required' });
-    }
-    
-    const filePath = path.join(__dirname, '..', 'public', primary_name, `${source}.csv`);
-    
-    if (!await fs.pathExists(filePath)) {
-      return res.status(404).json({ error: `File not found: ${source}.csv` });
-    }
-    
-    // Read the first row to get column names
-    const headers = [];
-    fs.createReadStream(filePath)
-      .pipe(csv())
-      .on('headers', (headerList) => {
-        headers.push(...headerList);
-      })
-      .on('end', () => {
-        res.json({
-          primary_name,
-          source,
-          columns: headers
-        });
+    try {
+      const { primary_name, source } = req.params;
+      
+      if (!primary_name || !source) {
+        return res.status(400).json({ error: 'Primary name and source are required' });
+      }
+      
+      // Try with different naming conventions
+      let filePath = path.join(__dirname, '..', 'public', primary_name, `${source}.csv`);
+      
+      console.log(`Looking for file at: ${filePath}`);
+      
+      if (!await fs.pathExists(filePath)) {
+        console.log(`File not found at: ${filePath}, trying alternative paths...`);
+        
+        // Try with hyphen instead of underscore
+        const hyphenSource = source.replace(/_/g, '-');
+        filePath = path.join(__dirname, '..', 'public', primary_name, `${hyphenSource}.csv`);
+        
+        if (!await fs.pathExists(filePath)) {
+          return res.status(404).json({ error: `File not found: ${source}.csv` });
+        }
+      }
+      
+      // Use fs.readFile instead of streaming for more predictable behavior
+      const fileContent = await fs.readFile(filePath, 'utf8');
+      
+      // Get the first line for headers
+      const lines = fileContent.split('\n');
+      if (lines.length === 0) {
+        return res.status(400).json({ error: 'Empty CSV file' });
+      }
+      
+      const headerLine = lines[0].trim();
+      const headers = headerLine.split(',').map(header => header.trim().replace(/^"|"$/g, ''));
+      
+      res.json({
+        primary_name,
+        source,
+        columns: headers
       });
-  } catch (error) {
-    console.error('Error getting schema:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Root endpoint for API health check
-app.get('/', (req, res) => {
-  res.json({
-    status: 'online',
-    message: 'Resort Information API is running',
-    endpoints: [
-      '/api/filter-information',
-      '/api/get-chunk',
-      '/api/sources/:primary_name',
-      '/api/schema/:primary_name/:source'
-    ]
+    } catch (error) {
+      console.error('Error getting schema:', error);
+      res.status(500).json({ error: 'Internal server error: ' + error.message });
+    }
   });
-});
 
 // Start the server
 app.listen(PORT, () => {
